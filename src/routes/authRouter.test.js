@@ -2,8 +2,7 @@ const request = require('supertest');
 const app = require('../service');
 
 test('register', async () => {
-  const user = { name: 'pizza diner', email: '', password: 'a' };
-  user.email = Math.random().toString(36).substring(2, 12) + '@test.com';
+  const user = { name: randomName(), email: randomEmail(), password: 'a' };
   const registerRes = await request(app).post('/api/auth').send(user);
   expect(registerRes.status).toBe(200);
 
@@ -11,6 +10,8 @@ test('register', async () => {
   const expectedUser = { ...user, roles: [{ role: 'diner' }] };
   delete expectedUser.password;
   expect(registerRes.body.user).toMatchObject(expectedUser);
+
+  return user;
 });
 
 test('register without password', async () => {
@@ -21,8 +22,7 @@ test('register without password', async () => {
 });
 
 test('login', async () => {
-  const user = { name: 'pizza diner', email: '', password: 'a' };
-  user.email = Math.random().toString(36).substring(2, 12) + '@test.com';
+  const user = { name: randomName(), email: randomEmail(), password: 'a' };
   const registerRes = await request(app).post('/api/auth').send(user);
   expect(registerRes.status).toBe(200);
 
@@ -33,11 +33,13 @@ test('login', async () => {
   const expectedUser = { ...user, roles: [{ role: 'diner' }] };
   delete expectedUser.password;
   expect(loginRes.body.user).toMatchObject(expectedUser);
+
+  return loginRes.body.token;
 });
 
+
 test('logout', async () => {
-  const user = { name: 'pizza diner', email: '', password: 'a' };
-  user.email = Math.random().toString(36).substring(2, 12) + '@test.com';
+  const user = { name: randomName(), email: randomEmail(), password: 'a' };
   const registerRes = await request(app).post('/api/auth').send(user);
   expect(registerRes.status).toBe(200);
 
@@ -81,4 +83,12 @@ test('change user email', async () => {
 
 function expectValidJwt(potentialJwt) {
   expect(potentialJwt).toMatch(/^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/);
+}
+
+function randomName() {
+  return Math.random().toString(36).substring(2, 12);
+}
+
+function randomEmail() {
+  return Math.random().toString(36).substring(2, 12) + '@test.com';
 }

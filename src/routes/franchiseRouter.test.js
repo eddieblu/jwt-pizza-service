@@ -12,10 +12,10 @@ beforeAll(async () => {
 });
 
 // may be unnecessary for line coverage ? 
-// test('return list of franchises', async () => {
-//     const res = await request(app).get('/api/franchise').set('Authorization', `Bearer ${testAdminAuthToken}`);
-//     expect(res.status).toBe(200);
-// });
+test('return list of franchises', async () => {
+    const res = await request(app).get('/api/franchise').set('Authorization', `Bearer ${testAdminAuthToken}`);
+    expect(res.status).toBe(200);
+});
 
 test('create franchise', createFranchise);
 
@@ -28,12 +28,6 @@ async function createFranchise() {
     expect(newFranchiseRes.body).toHaveProperty('id');
     expect(newFranchiseRes.body).toHaveProperty('name', newFranchiseName);
 }
-
-
-test('delete franchise', async () => {
-
-});
-
 
 function expectValidJwt(potentialJwt) {
     expect(potentialJwt).toMatch(/^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/);
