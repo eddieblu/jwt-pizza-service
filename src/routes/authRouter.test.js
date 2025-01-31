@@ -1,17 +1,6 @@
 const request = require('supertest');
 const app = require('../service');
 
-const testUser = { name: 'pizza diner', email: 'reg@test.com', password: 'a' };
-let testUserAuthToken;
-
-// NOTES: before any of the tests runs this code will run. Not before each one, only once per run of tests. 
-beforeAll(async () => {
-  testUser.email = Math.random().toString(36).substring(2, 12) + '@test.com';
-  const registerRes = await request(app).post('/api/auth').send(testUser);
-  testUserAuthToken = registerRes.body.token;
-  expectValidJwt(testUserAuthToken);
-});
-
 test('register', async () => {
   const user = { name: 'pizza diner', email: '', password: 'a' };
   user.email = Math.random().toString(36).substring(2, 12) + '@test.com';
@@ -32,11 +21,16 @@ test('register without password', async () => {
 });
 
 test('login', async () => {
-  const loginRes = await request(app).put('/api/auth').send(testUser);
+  const user = { name: 'pizza diner', email: '', password: 'a' };
+  user.email = Math.random().toString(36).substring(2, 12) + '@test.com';
+  const registerRes = await request(app).post('/api/auth').send(user);
+  expect(registerRes.status).toBe(200);
+
+  const loginRes = await request(app).put('/api/auth').send(user);
   expect(loginRes.status).toBe(200);
   expectValidJwt(loginRes.body.token);
 
-  const expectedUser = { ...testUser, roles: [{ role: 'diner' }] };
+  const expectedUser = { ...user, roles: [{ role: 'diner' }] };
   delete expectedUser.password;
   expect(loginRes.body.user).toMatchObject(expectedUser);
 });
