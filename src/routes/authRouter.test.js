@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../service');
 
-test('register', async () => {
+test('register diner', async () => {
   const user = { name: randomName(), email: randomEmail(), password: 'a' };
   const registerRes = await request(app).post('/api/auth').send(user);
   expect(registerRes.status).toBe(200);

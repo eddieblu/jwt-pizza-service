@@ -10,10 +10,10 @@ test('return list of franchises', async () => {
 
 test('create franchise', async () => {
     const adminUser = await createAdminUser();
-    const adminEmail = adminUser.email;
 
     const newFranchiseName = randomName();
-    const newFranchise = { name: newFranchiseName, admins: [{ email: adminEmail }] };
+    const newFranchise = { name: newFranchiseName, admins: [{ email: adminUser.email }] };
+    
     const newFranchiseRes = await request(app).post('/api/franchise').set('Authorization', `Bearer ${adminUser.token}`).send(newFranchise);
 
     expect(newFranchiseRes.status).toBe(200);
