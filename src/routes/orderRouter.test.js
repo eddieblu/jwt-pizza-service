@@ -35,10 +35,16 @@ test('create order', async () => {
 
     // create order 
     const newOrder = { "franchiseId": newFranchise.id, "storeId": newStoreRes.body.id, "items": [{ "menuId": newMenuItem.id, "description": newMenuItem.description, "price": newMenuItem.price }] };
-    const createOrderRes = await request(app).post('/api/order').set('Authorization', `Bearer ${dinerUser.token}`).send(newOrder);
+    const newOrderRes = await request(app).post('/api/order').set('Authorization', `Bearer ${dinerUser.token}`).send(newOrder);
+    expect(newOrderRes.status).toBe(200);
 
-    // assert 
-    expect(createOrderRes.status).toBe(200);
+    // check to see that newOrder is listed in diner's orders
+    const orderListRes = await request(app).get('/api/order').set('Authorization', `Bearer ${dinerUser.token}`);
+    expect(orderListRes.status).toBe(200);
+
+    const matchingOrder = orderListRes.body.orders.find((order) => order.id === newOrderRes.body.order.id);
+    expect(matchingOrder).toBeDefined();
+    expect(matchingOrder.items).toEqual(expect.arrayContaining([expect.objectContaining({ menuId: newMenuItem.id, description: newMenuItem.description, price: newMenuItem.price, }),]));
 });
 
 
