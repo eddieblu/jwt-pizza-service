@@ -12,6 +12,35 @@ test('add menu item', async () => {
     expect(addMenuItemRes.body).toEqual(expect.arrayContaining([expect.objectContaining({ title: newMenuItemName })]));
 });
 
+test('create order', async () => {
+    // create franchise and store 
+    const adminUser = await createAdminUser();
+    const newFranchise = await createFranchise(adminUser);
+    const newStore = { "franchiseId": newFranchise.id, "name": randomName() }
+    const newStoreRes = await request(app).post(`/api/franchise/${newFranchise.id}/store`).set('Authorization', `Bearer ${adminUser.token}`).send(newStore);
+    expect(newStoreRes.status).toBe(200);
+
+    //create menu item 
+    const newMenuItemName = randomName();
+    const newMenuItem = { title: newMenuItemName, description: "No topping, no sauce, just carbs", image: "pizza9.png", price: 0.0001 };
+    const addMenuItemRes = await request(app).put('/api/order/menu').set('Authorization', `Bearer ${adminUser.token}`).send(newMenuItem);
+    expect(addMenuItemRes.status).toBe(200);
+
+    // get new menu item id
+    const addedItem = addMenuItemRes.body.find(item => item.title === newMenuItemName);
+    newMenuItem.id = addedItem.id;
+
+    // create diner
+    const dinerUser = await createDinerUser();
+
+    // create order 
+    const newOrder = { "franchiseId": newFranchise.id, "storeId": newStoreRes.body.id, "items": [{ "menuId": newMenuItem.id, "description": newMenuItem.description, "price": newMenuItem.price }] };
+    const createOrderRes = await request(app).post('/api/order').set('Authorization', `Bearer ${dinerUser.token}`).send(newOrder);
+
+    // assert 
+    expect(createOrderRes.status).toBe(200);
+});
+
 
 function randomName() {
     return Math.random().toString(36).substring(2, 12);
