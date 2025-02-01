@@ -6,7 +6,7 @@
   "scripts": {
     "run": "cd src && node index.js",
     "test": "jest",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 0"
   },
   "license": "MIT",
   "dependencies": {
