@@ -97,9 +97,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://pizza.edwardscs.click
     permissions:
       id-token: write
     env:
