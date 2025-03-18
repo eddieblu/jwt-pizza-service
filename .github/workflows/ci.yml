@@ -100,10 +100,10 @@ jobs:
           path: dist/
 
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-    needs: build
     env:
       version: ${{needs.build.outputs.version}}
 
@@ -138,7 +138,7 @@ jobs:
       run: |
         docker build --platform=linux/arm64 -t $ECR_REGISTRY/$ECR_REPOSITORY --push .
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >>  $GITHUB_OUTPUT
-
+        
     - name: Deploy new container
       run: |
         aws ecs update-service --cluster jwt-pizza-service --service jwt-pizza-service --force-new-deployment
