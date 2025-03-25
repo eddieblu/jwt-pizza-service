@@ -78,13 +78,29 @@ orderRouter.post(
   '/',
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
+    const startTime = process.hrtime();
+
     const orderReq = req.body;
     const order = await DB.addDinerOrder(req.user, orderReq);
     const r = await fetch(`${config.factory.url}/api/order`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${config.factory.apiKey}` },
-      body: JSON.stringify({ diner: { id: req.user.id, name: req.user.name, email: req.user.email }, order }),
+      headers: {
+        'Content-Type': 'application/json',
+        authorization: `Bearer ${config.factory.apiKey}`
+      },
+      body: JSON.stringify({
+        diner: {
+          id: req.user.id,
+          name: req.user.name,
+          email: req.user.email
+        }, order
+      }),
     });
+
+    const diff = process.hrtime(startTime);
+    const latencyMs = (diff[0] * 1e9 + diff[1]) / 1e6;
+    metrics.trackPizzaCreationLatency(latencyMs);
+
     const j = await r.json();
     if (r.ok) {
       sumOrder(order);
@@ -92,7 +108,10 @@ orderRouter.post(
       res.send({ order, reportSlowPizzaToFactoryUrl: j.reportUrl, jwt: j.jwt });
     } else {
       metrics.trackPizzaCreationFailure();
-      res.status(500).send({ message: 'Failed to fulfill order at factory', reportPizzaCreationErrorToPizzaFactoryUrl: j.reportUrl });
+      res.status(500).send({
+        message: 'Failed to fulfill order at factory',
+        reportPizzaCreationErrorToPizzaFactoryUrl: j.reportUrl
+      });
     }
   })
 );

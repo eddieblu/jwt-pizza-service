@@ -4,6 +4,11 @@ const os = require('os');
 let lastCpuUsage = process.cpuUsage();
 let lastTime = process.hrtime();
 
+let totalEndpointLatency = 0;
+let endpointRequestCount = 0;
+let totalPizzaCreationLatency = 0;
+let pizzaCreationCount = 0;
+
 const metrics = {
     requestsByMethod: {
         GET: 0,
@@ -33,7 +38,20 @@ const metrics = {
 
 function requestTracker() {
     return (req, res, next) => {
+        const startTime = process.hrtime();
         metrics.requestsByMethod[req.method] += 1;
+        console.log(req.method);
+        console.log(metrics.requestsByMethod[req.method]);
+
+
+        // When response finishes, calculate elapsed time in milliseconds
+        res.on('finish', () => {
+            const diff = process.hrtime(startTime);
+            const latencyMs = (diff[0] * 1e9 + diff[1]) / 1e6;
+            totalEndpointLatency += latencyMs;
+            endpointRequestCount++;
+        });
+
         next();
     };
 };
@@ -68,31 +86,66 @@ function trackPizzaRevenue(price) {
     metrics.pizzas.revenue += price;
 }
 
+function getAverageLatencyAndReset(total, count) {
+    if (count === 0) return 0;
+    const avg = total / count;
+    return avg;
+}
+
+function trackPizzaCreationLatency(latencyMs) {
+    totalPizzaCreationLatency += latencyMs;
+    pizzaCreationCount++;
+}
+
+function resetLatencyTrackers() {
+    totalEndpointLatency = 0;
+    endpointRequestCount = 0;
+    totalPizzaCreationLatency = 0;
+    pizzaCreationCount = 0;
+}
+
 // This will periodically send metrics to Grafana
 setInterval(() => {
+
+    // requestsByMethod
     Object.keys(metrics.requestsByMethod).forEach((method) => {
         sendMetricToGrafana('methods', metrics.requestsByMethod[method], { method });
     });
 
+    // activeUsers
     sendMetricToGrafana('activeUsers', metrics.activeUsers, {});
 
+    // authAttempts
     sendMetricToGrafana('authAttemps', metrics.authAttempts.success, { status: 'success' });
     sendMetricToGrafana('authAttemps', metrics.authAttempts.failure, { status: 'failure' });
 
+    // system cpuPercentage
     metrics.system.cpuPercentage = getCpuUsagePercentage();
     sendMetricToGrafana('cpuPercentage', metrics.system.cpuPercentage, {});
 
+    // system memoryPercentage
     metrics.system.memoryPercentage = getMemoryUsagePercentage();
     sendMetricToGrafana('memoryPercentage', metrics.system.memoryPercentage, {});
 
+    // pizzas sold, creationFailures, revenue
     Object.keys(metrics.pizzas).forEach((pizzaMetric) => {
         sendMetricToGrafana('pizzas', metrics.pizzas[pizzaMetric], { pizzaMetric });
-    })
+    });
+
+    // latency endpoint
+    const avgEndpointLatency = getAverageLatencyAndReset(totalEndpointLatency, endpointRequestCount);
+    metrics.latency.endpointLatency = avgEndpointLatency;
+    sendMetricToGrafana('endpointLatency', avgEndpointLatency, {});
+
+    // latency pizzaCreation
+    const avgPizzaLatency = getAverageLatencyAndReset(totalPizzaCreationLatency, pizzaCreationCount);
+    metrics.latency.pizzaCreationLatency = avgPizzaLatency;
+    sendMetricToGrafana('endpointPizzaCreationLatency', avgPizzaLatency, {});
+
+    resetLatencyTrackers();
 
 }, 10000);
 
-
-//Disclosure: code from ChatGPT
 function getCpuUsagePercentage() {
     const currentCPUUsage = process.cpuUsage();
     const currentTime = process.hrtime();
@@ -123,7 +176,6 @@ function getMemoryUsagePercentage() {
     const memoryUsage = ((usedMemory / totalMemory) * 100);
     return memoryUsage.toFixed(1);
 }
-
 
 function sendMetricToGrafana(metricName, metricValue, attributes) {
     attributes = { ...attributes, source: config.source };
@@ -188,5 +240,6 @@ module.exports = {
     trackAuthSuccess,
     trackPizzaSold,
     trackPizzaCreationFailure,
-    trackPizzaRevenue
+    trackPizzaRevenue,
+    trackPizzaCreationLatency
 };
