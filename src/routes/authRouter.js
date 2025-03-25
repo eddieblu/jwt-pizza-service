@@ -48,8 +48,10 @@ async function setAuthUser(req, res, next) {
         // Check the database to make sure the token is valid.
         req.user = jwt.verify(token, config.jwtSecret);
         req.user.isRole = (role) => !!req.user.roles.find((r) => r.role === role);
+        metrics.trackAuthSuccess();
       }
     } catch {
+      metrics.trackAuthFailure();
       req.user = null;
     }
   }
@@ -59,10 +61,10 @@ async function setAuthUser(req, res, next) {
 // Authenticate token
 authRouter.authenticateToken = (req, res, next) => {
   if (!req.user) {
-    // metrics.trackAuthFailure();
+    metrics.trackAuthFailure();
     return res.status(401).send({ message: 'unauthorized' });
   }
-  // metrics.trackAuthSuccess();
+  metrics.trackAuthSuccess();
   next();
 };
 
@@ -72,13 +74,11 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
-      metrics.trackAuthFailure();
       return res.status(400).json({ message: 'name, email, and password are required' });
     }
     const user = await DB.addUser({ name, email, password, roles: [{ role: Role.Diner }] });
     const auth = await setAuth(user);
 
-    metrics.trackAuthSuccess();
     metrics.incrementActiveUsers();
     res.json({ user: user, token: auth });
   })
@@ -92,7 +92,6 @@ authRouter.put(
     const user = await DB.getUser(email, password);
     const auth = await setAuth(user);
 
-    metrics.trackAuthSuccess();
     metrics.incrementActiveUsers();
     res.json({ user: user, token: auth });
   })
@@ -122,10 +121,9 @@ authRouter.put(
       metrics.trackAuthFailure();
       return res.status(403).json({ message: 'unauthorized' });
     }
-        
+
     const updatedUser = await DB.updateUser(userId, email, password);
 
-    metrics.trackAuthSuccess();
     res.json(updatedUser);
   })
 );

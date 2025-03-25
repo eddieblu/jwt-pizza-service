@@ -1,6 +1,9 @@
 const config = require('./config');
 const os = require('os');
 
+let lastCpuUsage = process.cpuUsage();
+let lastTime = process.hrtime();
+
 const metrics = {
     requestsByMethod: {
         GET: 0,
@@ -53,6 +56,18 @@ function trackAuthFailure() {
     metrics.authAttempts.failure += 1;
 }
 
+function trackPizzaSold() {
+    metrics.pizzas.sold += 1;
+}
+
+function trackPizzaCreationFailure() {
+    metrics.pizzas.creationFailures += 1;
+}
+
+function trackPizzaRevenue(price) {
+    metrics.pizzas.revenue += price;
+}
+
 // This will periodically send metrics to Grafana
 const timer = setInterval(() => {
     Object.keys(metrics.requestsByMethod).forEach((method) => {
@@ -64,20 +79,49 @@ const timer = setInterval(() => {
     sendMetricToGrafana('authAttemps', metrics.authAttempts.success, { status: 'success' });
     sendMetricToGrafana('authAttemps', metrics.authAttempts.failure, { status: 'failure' });
 
+    metrics.system.cpuPercentage = getCpuUsagePercentage();
+    sendMetricToGrafana('cpuPercentage', metrics.system.cpuPercentage, {});
+
+    metrics.system.memoryPercentage = getMemoryUsagePercentage();
+    sendMetricToGrafana('memoryPercentage', metrics.system.memoryPercentage, {});
+
+    Object.keys(metrics.pizzas).forEach((pizzaMetric) => {
+        sendMetricToGrafana('pizzas', metrics.pizzas[pizzaMetric], { pizzaMetric });
+    })
+
 }, 10000);
 
 
+//Disclosure: code from ChatGPT
 function getCpuUsagePercentage() {
-    const cpuUsage = os.loadavg()[0] / os.cpus().length;
-    return cpuUsage.toFixed(2) * 100;
+    const currentCPUUsage = process.cpuUsage();
+    const currentTime = process.hrtime();
+
+    // Calculate elapsed microseconds in user and system mode
+    const userDiff = currentCPUUsage.user - lastCpuUsage.user;       // microseconds
+    const systemDiff = currentCPUUsage.system - lastCpuUsage.system; // microseconds
+
+    // Calculate elapsed time in microseconds
+    const hrSecDiff = currentTime[0] - lastTime[0];    // seconds
+    const hrNanoDiff = currentTime[1] - lastTime[1];   // nanoseconds
+    const elapsedMicros = (hrSecDiff * 1e9 + hrNanoDiff) / 1000;
+
+    // Calculate percentage: (CPU time / elapsed time) * 100
+    const cpuPercent = ((userDiff + systemDiff) / elapsedMicros) * 100;
+
+    // Update our "last" values
+    lastCpuUsage = currentCPUUsage;
+    lastTime = currentTime;
+
+    return Math.round(cpuPercent);
 }
 
 function getMemoryUsagePercentage() {
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
     const usedMemory = totalMemory - freeMemory;
-    const memoryUsage = (usedMemory / totalMemory) * 100;
-    return memoryUsage.toFixed(2);
+    const memoryUsage = ((usedMemory / totalMemory) * 100);
+    return memoryUsage.toFixed(1);
 }
 
 
@@ -96,7 +140,7 @@ function sendMetricToGrafana(metricName, metricValue, attributes) {
                                 sum: {
                                     dataPoints: [
                                         {
-                                            asInt: metricValue,
+                                            asDouble: metricValue,
                                             timeUnixNano: Date.now() * 1000000,
                                             attributes: [],
                                         },
@@ -126,7 +170,7 @@ function sendMetricToGrafana(metricName, metricValue, attributes) {
     })
         .then((response) => {
             if (!response.ok) {
-                console.error('Failed to push metrics data to Grafana');
+                console.error(`Failed to push metrics ${metricName} data to Grafana`);
             } else {
                 console.log(`Pushed ${metricName}`);
             }
@@ -142,4 +186,7 @@ module.exports = {
     decrementActiveUsers,
     trackAuthFailure,
     trackAuthSuccess,
+    trackPizzaSold,
+    trackPizzaCreationFailure,
+    trackPizzaRevenue
 };

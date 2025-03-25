@@ -3,6 +3,7 @@ const config = require('../config.js');
 const { Role, DB } = require('../database/database.js');
 const { authRouter } = require('./authRouter.js');
 const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
+const metrics = require('../metrics.js');
 
 const orderRouter = express.Router();
 
@@ -43,7 +44,7 @@ orderRouter.endpoints = [
 // getMenu
 orderRouter.get(
   '/menu',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     res.send(await DB.getMenu());
   })
 );
@@ -86,11 +87,23 @@ orderRouter.post(
     });
     const j = await r.json();
     if (r.ok) {
+      sumOrder(order);
+      metrics.trackPizzaSold();
       res.send({ order, reportSlowPizzaToFactoryUrl: j.reportUrl, jwt: j.jwt });
     } else {
+      metrics.trackPizzaCreationFailure();
       res.status(500).send({ message: 'Failed to fulfill order at factory', reportPizzaCreationErrorToPizzaFactoryUrl: j.reportUrl });
     }
   })
 );
+
+// helper function to sum order
+function sumOrder(order) {
+  let sum = 0;
+  for (const item of order.items) {
+    sum += item.price;
+  }
+  metrics.trackPizzaRevenue(sum);
+}
 
 module.exports = orderRouter;
