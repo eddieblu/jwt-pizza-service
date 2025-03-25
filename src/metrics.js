@@ -69,7 +69,7 @@ function trackPizzaRevenue(price) {
 }
 
 // This will periodically send metrics to Grafana
-const timer = setInterval(() => {
+setInterval(() => {
     Object.keys(metrics.requestsByMethod).forEach((method) => {
         sendMetricToGrafana('methods', metrics.requestsByMethod[method], { method });
     });
