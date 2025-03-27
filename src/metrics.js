@@ -40,9 +40,6 @@ function requestTracker() {
     return (req, res, next) => {
         const startTime = process.hrtime();
         metrics.requestsByMethod[req.method] += 1;
-        console.log(req.method);
-        console.log(metrics.requestsByMethod[req.method]);
-
 
         // When response finishes, calculate elapsed time in milliseconds
         res.on('finish', () => {
