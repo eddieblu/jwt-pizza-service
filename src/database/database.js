@@ -1,10 +1,12 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
-const config = require('../config.js');
-const { StatusCodeError } = require('../endpointHelper.js');
-const { Role } = require('../model/model.js');
-const dbModel = require('./dbModel.js');
-const metrics = require('../metrics.js'); 
+const config = require('../config');
+const { StatusCodeError } = require('../endpointHelper');
+const { Role } = require('../model/model');
+const dbModel = require('./dbModel');
+const metrics = require('../metrics'); 
+const Logger = require('pizza-logger');
+const logger = new Logger(config);
 
 class DB {
   constructor() {
@@ -288,6 +290,7 @@ class DB {
   }
 
   async query(connection, sql, params) {
+    logger.dbLogger(sql);
     const [results] = await connection.execute(sql, params);
     return results;
   }
@@ -354,6 +357,8 @@ class DB {
     const [rows] = await connection.execute(`SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, [config.db.connection.database]);
     return rows.length > 0;
   }
+
+  
 }
 
 const db = new DB();
